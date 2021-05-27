@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from efficientnet_pytorch import EfficientNet
 
-from layer import AdaptiveConcatPool2d, Flatten, GeM, SEBlock
+from .layer import AdaptiveConcatPool2d, Flatten, GeM, SEBlock
 
 
 class CustomEfficientNet(nn.Module):

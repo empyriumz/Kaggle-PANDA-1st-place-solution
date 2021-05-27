@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.logging import LightningLoggerBase
+from pytorch_lightning.loggers.base import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
 
 from factory import read_yaml
@@ -71,7 +71,7 @@ class MyModelCheckpoint(ModelCheckpoint):
             self.best_model_score = -np.Inf
 
     @rank_zero_only
-    def on_validation_end(self, trainer, pl_module):
+    def on_validation_end(self, trainer):
         # Save latest
         if self.verbose > 0:
             epoch = trainer.current_epoch
@@ -152,14 +152,11 @@ def train_a_kfold(cfg: Dict, cfg_name: str, output_path: Path) -> None:
         logger=mylogger,
         max_epochs=5 if debug else cfg.General.epoch,
         checkpoint_callback=checkpoint_callback,
-        early_stop_callback=False,
-        train_percent_check=0.02 if debug else 1.0,
-        val_percent_check=0.06 if debug else 1.0,
         gpus=cfg.General.gpus,
-        use_amp=cfg.General.fp16,
-        amp_level=cfg.General.amp_level,
+        precision=16 if cfg.General.fp16 else 32,
+        #amp_level=cfg.General.amp_level,
         distributed_backend=cfg.General.multi_gpu_mode,
-        log_save_interval=5 if debug else 200,
+        flush_logs_every_n_steps=5 if debug else 200,
         accumulate_grad_batches=cfg.General.grad_acc,
         deterministic=True,
     )

@@ -2,7 +2,7 @@ import albumentations as alb
 import albumentations.pytorch as albp
 import torch
 import torch.nn as nn
-import torch_optimizer as toptim
+# import torch_optimizer as toptim
 import yaml
 from addict import Dict
 
@@ -137,11 +137,11 @@ def get_loss(conf):
 def get_optimizer(conf):
     conf_optim = conf.Optimizer
     name = conf_optim.optimizer.name
-    if hasattr(torch.optim, name):
-        optimizer_cls = getattr(torch.optim, name)
-    else:
-        optimizer_cls = getattr(toptim, name)
-
+    # if hasattr(torch.optim, name):
+    #     optimizer_cls = getattr(torch.optim, name)
+    # else:
+    #     optimizer_cls = getattr(toptim, name)
+    optimizer_cls = getattr(torch.optim, name)
     if hasattr(conf_optim, "lr_scheduler"):
         scheduler_cls = getattr(torch.optim.lr_scheduler, conf_optim.lr_scheduler.name)
     else:

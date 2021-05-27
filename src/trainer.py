@@ -212,10 +212,8 @@ class LightningModuleReg(pl.LightningModule):
             worker_init_fn=worker_init_fn,
         )
 
-    @pl.data_loader
     def train_dataloader(self):
         return self.get_loader(phase="train")
 
-    @pl.data_loader
     def val_dataloader(self):
         return self.get_loader(phase="valid")

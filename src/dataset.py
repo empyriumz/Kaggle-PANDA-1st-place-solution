@@ -148,7 +148,6 @@ class TrainDataset(Dataset):
         self.nms = conf_dataset.nms_dataset
         self.mix_nms_normal_tile = conf_dataset.mix_nms_normal_tile
         self.concat_ch = conf_dataset.concat_ch
-        self.cycle_gan_aug = conf_dataset.cycle_gan_aug
         self.softmax = conf_dataset.softmax
         self.use_clean_label = conf_dataset.use_clean_label
         self.clean_label_type = conf_dataset.clean_label_type  # pbc, pbnr, both
@@ -174,7 +173,7 @@ class TrainDataset(Dataset):
 
         # Adaptive generate
         print(f"df_path: {self.df_path}")
-        self.df = pd.read_csv(self.df_path)
+        self.df = pd.read_pickle(self.df_path)
         if self.use_clean_label:
             print(f"Use clean label: {self.clean_label_type}")
             self.df = self.df[~self.df[f"is_error_cl_{self.clean_label_type}"]]
@@ -189,30 +188,24 @@ class TrainDataset(Dataset):
         print(f"{phase} dataset: {len(self.df)}")
         if self.nms:
             data_dirs = [
-                # ex. numtile-64-tilesize-160-nms-striderate-8
-                f"../input/numtile-{self.num_tile}-tilesize-{self.tile_size}-nms-striderate-{sr}"
+                f"/host/numtile-{self.num_tile}-tilesize-{self.tile_size}-nms-striderate-{sr}"
                 for sr in [2, 8]
             ]
         elif self.mix_nms_normal_tile:
             data_dirs = [
-                # f"../input/numtile-{self.num_tile}-tilesize-mixed-nms-normal-mode-{m}"
-                # f"../input/numtile-{self.num_tile}-tilesize-mixed-nms-normal-mode-{m}"
-                f"../input/numtile-{self.num_tile}-tilesize-{self.tile_size}-nms-striderate-{sr}"
+                f"/host/numtile-{self.num_tile}-tilesize-{self.tile_size}-nms-striderate-{sr}"
                 for sr in [2, 8]
                 # for m in [0, 2]
             ]
         else:
             data_dirs = [
-                f"../input/numtile-{self.num_tile}-tilesize-{self.tile_size}-res-1-mode-{m}"
+                f"/host/numtile-{self.num_tile}-tilesize-{self.tile_size}-res-1-mode-{m}"
                 for m in [0, 2]
             ]
         self.img_dir = os.path.join(data_dirs[0], "train")
         self.img_dir_mode2 = os.path.join(data_dirs[1], "train")
-        self.img_dir_gan = "../input/tile-64-size-192-res-1-forGAN"
         print(f"input dir: {self.img_dir}")
-        if self.cycle_gan_aug:
-            print(f"gan aug dir: {self.img_dir_gan}")
-
+       
         self.labels = self.df["isup_grade"]
         self.df.gleason_score = self.df.gleason_score.map(lambda x: "0+0" if x == "negative" else x)
         self.gleason_first = [int(x.split("+")[0]) for x in self.df.gleason_score]
@@ -277,23 +270,6 @@ class TrainDataset(Dataset):
         tiles = np.array([cv2.cvtColor(cv2.imread(p), cv2.COLOR_BGR2RGB) for p in paths])
         return tiles
 
-    def get_tiles_ganaug(self, idx):
-        file_name = self.df["image_id"].values[idx]
-        d = {"karolinska": "radboud", "radboud": "karolinska"}
-        dp = self.data_provider_raw[idx]
-
-        if self.mode_aug and np.random.rand() < 0.5:
-            mode = 2
-        else:
-            mode = 0
-
-        # ex.  fake_radboud_mode_0/0018ae58b01bdadc8e347995b69f99aa_0_fake.png
-        base_path = os.path.join(self.img_dir_gan, f"fake_{d[dp]}_mode_{mode}")
-        paths = [
-            os.path.join(base_path, f"{file_name}_{idx}_fake.png") for idx in range(self.num_tile)
-        ]
-        return self.get_tile_from_paths(paths)
-
     def get_normal_tile(self, idx):
         file_name = self.df["image_id"].values[idx]
         paths = [
@@ -305,18 +281,13 @@ class TrainDataset(Dataset):
         if self.phase == "valid":
             return self.get_normal_tile(idx)
 
-        # TODO cyclegan aug only karolinska
-        dp = self.data_provider_raw[idx]
-        if self.cycle_gan_aug and dp == "karolinska" and np.random.rand() < 0.5:
-            return self.get_tiles_ganaug(idx)
-
         if not (self.mode_aug and np.random.rand() < 0.5):
             return self.get_normal_tile(idx)
 
         # mode aug
         file_name = self.df["image_id"].values[idx]
         paths = [
-            os.path.join(self.img_dir_mode2, f"{file_name}_{idx}.png")
+            os.path.join(self.img_dir, f"{file_name}_{idx}.png")
             for idx in range(self.num_tile)
         ]
         return self.get_tile_from_paths(paths)
