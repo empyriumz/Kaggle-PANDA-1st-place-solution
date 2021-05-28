@@ -2,8 +2,8 @@ General:
     comment: Final Model for removing noise
     seed: 1222
     fp16: True
-    multi_gpu_mode: ddp
-    gpus: [0]
+    accelerator: ddp
+    gpus: 4
     epoch: &epoch 30
     grad_acc: 2
     frozen_bn: False
@@ -33,10 +33,10 @@ Data:
         clean_label_type: pbnr # pbc, pbnr, both
     dataloader:
         batch_size: 2
-        num_workers: 4
+        num_workers: 48
 
 Model:
-    base: efficientnet-b1
+    base: resnet18
     in_channel: 3
     out_channel: 10
     pretrained: True

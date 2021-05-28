@@ -1,33 +1,44 @@
 General:
-    comment: resnet34, img size 256*6 = 1536
+    comment: Final Model for removing noise
     seed: 1222
     fp16: True
-    amp_level: O1
-    multi_gpu_mode: ddp
-    gpus: [0]
+    accelerator: ddp
+    gpus: [0, 1, 2, 3]
     epoch: &epoch 30
-    grad_acc: 4
+    grad_acc: 2
+    frozen_bn: False
     debug: False  # This value overwritten in train.py
 
 Data:
     dataset:
-        train_df: ../input/train-5kfold.csv
-        kfold: -1
-        tile_option: adaptive_kmeans
+        train_df: input/train-removed-noise.pkl
+        kfold: 1
+        tile_option: normal
         random_tile_train: True
         random_rotate_tile: False
-        random_tile_white: True
+        random_tile_white: False
         img_size: 1536
-        num_tile: &num_tile 36
-        box_scale: &box_scale 1.3
+        num_tile: 64
+        tile_size: 192
+        mode_aug: True
+        spiral_tile: False
+        mixup: False
+        cutmix: False
+        cutmix_epoch: 0
+        nms_dataset: False
+        mix_nms_normal_tile: False
+        concat_ch: False
+        softmax: False
+        use_clean_label: False
+        clean_label_type: pbnr # pbc, pbnr, both
     dataloader:
         batch_size: 4
         num_workers: 4
 
 Model:
-    base: se_resnest50_fast_2s2x40d
+    base: efficientnet-b1
     in_channel: 3
-    out_channel: 5
+    out_channel: 10
     pretrained: True
     pool_type: gem
 
@@ -35,6 +46,7 @@ Optimizer:
     optimizer:
         name: Adam
         params:
+            # 10 times on epoch 0 by warmup scheduler
             lr: !!python/float 3e-5
             amsgrad: False
     lr_scheduler:
@@ -48,11 +60,9 @@ Loss:
         name: BCEWithLogitsLoss
         params:
             reduction: mean
+        weight: [1., 1., 1., 1., 1., 1., 1., 1., 1., 1.]
 
 Augmentation:
-    args_compose:
-        additional_targets:
-            img_global: image
     train:
         - name: Transpose
           params:

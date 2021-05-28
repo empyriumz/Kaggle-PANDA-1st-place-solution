@@ -13,10 +13,12 @@ from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers.base import LightningLoggerBase
 from pytorch_lightning.utilities import rank_zero_only
+from pytorch_lightning.plugins import DDPPlugin
 
 from factory import read_yaml
 from trainer import LightningModuleReg
-from utils import seed_torch, src_backup
+from utils import seed_torch
+
 
 # For downloading PyTorch weight
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -27,7 +29,7 @@ def make_parse():
     arg = parser.add_argument
     arg("--debug", action="store_true", help="debug")
     arg("--config", default="./configs/sample.yaml", type=str, help="config path")
-    arg("--gpus", default="0", type=str, help="gpu numbers")
+    arg("--gpus", default=1, type=int, help="gpu numbers")
     arg("--kfold", type=int, default=1)
     return parser
 
@@ -153,12 +155,14 @@ def train_a_kfold(cfg: Dict, cfg_name: str, output_path: Path) -> None:
         max_epochs=5 if debug else cfg.General.epoch,
         checkpoint_callback=checkpoint_callback,
         gpus=cfg.General.gpus,
+        auto_select_gpus=True,
         precision=16 if cfg.General.fp16 else 32,
-        #amp_level=cfg.General.amp_level,
-        distributed_backend=cfg.General.multi_gpu_mode,
+        # d=cfg.General.amp_level,
+        accelerator=cfg.General.accelerator,
         flush_logs_every_n_steps=5 if debug else 200,
         accumulate_grad_batches=cfg.General.grad_acc,
         deterministic=True,
+        plugins=DDPPlugin(find_unused_parameters=False),
     )
 
     # # Lightning module and start training
@@ -177,17 +181,17 @@ def main():
         print(f"    {key.ljust(30)}: {value}")
 
     # Set gpu
-    cfg.General.gpus = list(map(int, args.gpus.split(",")))
+    #cfg.General.gpus = args.gpus
 
     # Make output path
     output_path = Path("../output/model") / Path(args.config).stem
     output_path = make_output_path(output_path, args.debug)
 
     # Source code backup
-    shutil.copy2(args.config, str(output_path / Path(args.config).name))
-    src_backup_path = output_path / "src_backup"
-    src_backup_path.mkdir(exist_ok=True)
-    src_backup(input_dir=Path("./"), output_dir=src_backup_path)
+    # shutil.copy2(args.config, str(output_path / Path(args.config).name))
+    # src_backup_path = output_path / "src_backup"
+    # src_backup_path.mkdir(exist_ok=True)
+    # src_backup(input_dir=Path("./"), output_dir=src_backup_path)
 
     # Train start
     # seed_torch(seed=cfg.General.seed)

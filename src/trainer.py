@@ -112,10 +112,11 @@ class LightningModuleReg(pl.LightningModule):
         elif self.out_ch > 5:
             preds = logits[:, :5].sigmoid().sum(1)
             targets = targets[:, :5].sum(1)
-        return preds.detach().round(), targets.detach().round()
+        # return preds.detach().round(), targets.detach().round()
+        return preds.detach().round().cpu().numpy(), targets.detach().round().cpu().numpy()
 
     def validation_step(self, batch, batch_nb):
-        imgs, targets, data_provider = batch
+        imgs, targets, _ = batch
         logits = self.net(imgs)
 
         if self.out_ch == 1:
@@ -142,9 +143,10 @@ class LightningModuleReg(pl.LightningModule):
             d["v_loss_5"] = v_loss_5
 
         # Accuracy and Kappa score
-        all_preds = torch.cat([o["pred"] for o in outputs]).cpu().numpy()
-        all_targets = torch.cat([o["label"] for o in outputs]).cpu().numpy()
-
+        #all_preds = torch.cat([o["pred"] for o in outputs]).cpu().numpy()    
+        #all_targets = torch.cat([o["label"] for o in outputs]).cpu().numpy()
+        all_preds = np.concatenate([o["pred"] for o in outputs])
+        all_targets = np.concatenate([o["label"] for o in outputs])
         # All score
         d["v_acc"] = (all_preds == all_targets).mean() * 100.0
         d["v_kappa"] = quadratic_weighted_kappa(all_targets, all_preds)
@@ -208,6 +210,7 @@ class LightningModuleReg(pl.LightningModule):
             batch_size=cfg_dataloader.batch_size,
             shuffle=True if phase == "train" else False,
             num_workers=cfg_dataloader.num_workers,
+            pin_memory=True,
             drop_last=True if phase == "train" else False,
             worker_init_fn=worker_init_fn,
         )
